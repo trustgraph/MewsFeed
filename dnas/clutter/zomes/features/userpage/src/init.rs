@@ -1,6 +1,7 @@
 use hdk::prelude::*;
 use hdk::prelude::holo_hash::*;
 
-use follow::*;
+use crate::follow::*;
+use super::agent::*;
 
 pub fn init_account(agent: AgentPubKeyB64)
