@@ -11,6 +11,7 @@ pub struct Stats {
 #[hdk_entry(id = "self", visibility = "private")]
 pub struct Myself {
     pub_key: AgentPubKeyB64,
+    handle: String,
     // data: 
 }
 

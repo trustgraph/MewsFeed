@@ -9,3 +9,19 @@ pub use agent::*;
 
 
 entry_defs![Myself::entry_defs(), AgentStore::entry_defs()]
+
+pub enum DataType {
+    
+}
+
+pub enum Payload {
+    Input(IOType),
+    Output(IOType),
+}
+
+pub enum IOType {
+    User,
+    Agent,
+    Zome,
+    //Error
+}
