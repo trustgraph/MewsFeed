@@ -11,7 +11,7 @@ const FOLLOWERS_PATH_SEGMENT: &str = "followers";
 const FOLLOWING_PATH_SEGMENT: &str = "following";
 
 pub enum FollowFeatures {
-    Follow,
+    Follow(HeaderHashB64),
     Unfollow,
     //Followed, // TODO: receive input about an agents action on you
     //Unfollowed
@@ -30,25 +30,24 @@ fn get_follows_base(agent: AgentPubKeyB64, base_type: &str, ensure: bool) -> Ext
     let anchor_hash = path.path_entry_hash()?;
     Ok(anchor_hash)
 }
-
-#[hdk_extern]
+///TODO: create followers link for agent being followed
+#[hdk_extern] 
 pub fn follow(agent: AgentPubKeyB64) -> ExternResult<EntryHashB64> {
     let base = get_my_follows_base(FOLLOWING_PATH_SEGMENT, true)?; 
     let target = get_follows_base(agent, FOLLOWING_PATH_SEGMENT, false)?;
     let follow = Path::from(format!("follows.{}.{}", base, target));
     follow.ensure()?;
-    let link = create_link(base, target, FOLLOWERS_PATH_SEGMENT)?;
-
+    let link = create_link(base, target, FOLLOWING_PATH_SEGMENT)?;
+    //
     let path_hash = follow.path_entry_hash()?;
     Ok(path_hash)
 }
 
-/*
 #[hdk_extern]
-pub fn unfollow(agent: AgentPubKeyB64) -> {
-    // TODO: remove link
+pub fn unfollow(agent: AgentPubKeyB64) { //should this return something?
+    //TODO: remove link
 }
-*/
+
 
 #[hdk_extern]
 pub fn get_following(agent: AgentPubKeyB64) -> ExternResult<Vec<AgentPubKeyB64>> {
@@ -59,7 +58,7 @@ pub fn get_followers(agent: AgentPubKeyB64) -> ExternResult<Vec<AgentPubKeyB64>>
     follow_inner(agent, FOLLOWERS_PATH_SEGMENT)
 }
 
-fn follow_inner(agent: AgentPubKeyB64, base_type: &str) -> ExternResult<Vec<AgentPubKeyB64>> {
+fn follow_inner(agent: AgentPubKeyB64, base_type: &str) -> ExternResult<Vec<AgentPubKeyB64>> { 
     let base = get_follows_base(agent, base_type, false)?;
     let links = get_links(base, None)?;
     Ok(links

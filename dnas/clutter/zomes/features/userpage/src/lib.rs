@@ -8,10 +8,10 @@ pub use init::*;
 pub use agent::*;
 
 
-entry_defs![Myself::entry_defs(), AgentStore::entry_defs()]
+entry_defs![Myself::entry_defs(), AgentInfo::entry_defs()]
 
 pub enum DataType {
-    
+
 }
 
 pub enum Payload {
