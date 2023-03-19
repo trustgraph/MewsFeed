@@ -1,4 +1,3 @@
-
 # Clutter is now MewsFeed
 
 We are currently working towards the first major release of MewsFeed.
@@ -16,10 +15,10 @@ cachix use holochain-ci
 ```
 
 3. Clone this repo and `cd` inside of it.
-4. Enter the nix shell by running this in the root folder of the repository: 
+4. Enter the nix shell by running this in the root folder of the repository:
 
 ```bash
-nix-shell
+nix develop
 npm install
 ```
 
@@ -51,14 +50,14 @@ npm run test
 
 To test out the UI:
 
-``` bash
+```bash
 npm start
 ```
 
-To run another agent, open another terminal, and execute again:
+To run 2 agents:
 
 ```bash
-npm start
+npm run network 2
 ```
 
 Each new agent that you create this way will get assigned its own port and get connected to the other agents.
@@ -67,7 +66,7 @@ Each new agent that you create this way will get assigned its own port and get c
 
 To package the web happ:
 
-``` bash
+```bash
 npm run package
 ```
 
