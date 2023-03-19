@@ -118,3 +118,8 @@ export interface SigningCredentialsJson
   };
   signingKey: number[];
 }
+
+export interface TrustGraphAtomData {
+  topic: string;
+  weight: number;
+}
