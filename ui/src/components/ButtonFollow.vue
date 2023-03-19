@@ -22,6 +22,7 @@ import { PROFILE_FIELDS } from "@/types/types";
 import { isSameHash } from "@/utils/hash";
 import { showError, showMessage } from "@/utils/notification";
 import { AgentPubKey } from "@holochain/client";
+import { query_selector_all } from "svelte/internal";
 import { onMounted, PropType, ref } from "vue";
 
 const props = defineProps({
@@ -29,7 +30,18 @@ const props = defineProps({
     type: Object as PropType<AgentPubKey>,
     required: true,
   },
+//   topic: {
+//     type: String,
+//     required: false,
+//   },
+//   weight: {
+//     type: Number,
+//     required: false,
+//   },
 });
+
+const topic = ref("");
+const weight = ref(1.0);
 
 const profilesStore = useProfilesStore();
 
@@ -52,11 +64,21 @@ onMounted(async () => {
 
 const toggleFollow = async () => {
   try {
+    // TEMP, do this the Vue way instead ;)
+    const topic = query_selector_all('input[name="temp-topic"]')[0]?.value;
+    // const weight = query_selector_all('input[name="temp-weight"]')[0]?.value;
+    const weight = "0.75";
+    console.log({weight, topic})
+
     const [profile] = await Promise.all([
       profilesStore.value.client.getAgentProfile(props.agentPubKey),
       following.value
         ? await unfollow(props.agentPubKey)
-        : await follow(props.agentPubKey),
+        : await follow({
+          agent: props.agentPubKey,
+          topic,
+          weight,
+        }),
     ]);
     following.value = !following.value;
     const name = `${profile?.fields[PROFILE_FIELDS.DISPLAY_NAME]} (@${

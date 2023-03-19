@@ -17,7 +17,6 @@
             </div>
             <div class="text-primary">@{{ nickname }}</div>
           </div>
-          <ButtonFollow v-if="!isMyProfile" :agent-pub-key="agentPubKey" />
         </q-card-section>
 
         <q-card-section class="flex">
@@ -34,6 +33,14 @@
             <div>{{ location }}</div>
           </div>
         </q-card-section>
+
+        <TrustGraphWrapper v-model="trustGraphAtoms"></TrustGraphWrapper>
+        <ButtonFollow
+          v-if="!isMyProfile"
+          :agent-pub-key="agentPubKey"
+          :topic="topic"
+          :weight="weight"
+        />
       </q-card>
 
       <h6 class="q-mb-md">Mews</h6>
@@ -61,13 +68,20 @@ import ButtonFollow from "@/components/ButtonFollow.vue";
 import EmptyMewsFeed from "@/components/EmptyMewsFeed.vue";
 import FolloweesList from "@/components/FolloweesList.vue";
 import FollowersList from "@/components/FollowersList.vue";
+import TrustGraphWrapper from "@/components/TrustGraphWrapper.vue";
 import {
   getFeedMewAndContext,
   mewsBy,
   myFollowing,
 } from "@/services/clutter-dna";
 import { useProfilesStore } from "@/services/profiles-store";
-import { FeedMew, MewType, MewTypeName, PROFILE_FIELDS } from "@/types/types";
+import {
+  FeedMew,
+  MewType,
+  MewTypeName,
+  PROFILE_FIELDS,
+  TrustGraphAtomData,
+} from "@/types/types";
 import { isSameHash } from "@/utils/hash";
 import { showError, showMessage } from "@/utils/notification";
 import { pageHeightCorrection } from "@/utils/page-layout";
@@ -93,6 +107,10 @@ const bio = ref("");
 const location = ref("");
 const isFollowing = ref(false);
 const mews = ref<FeedMew[]>([]);
+const trustGraphAtoms = ref<TrustGraphAtomData[]>([]);
+
+const topic = ref("");
+const weight = ref(1.0);
 
 const isMyProfile = computed(() =>
   isSameHash(agentPubKey.value, profilesStore.value.client.client.myPubKey)

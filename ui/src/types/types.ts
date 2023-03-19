@@ -98,3 +98,8 @@ export enum SearchResult {
   Hashtag,
   Cashtag,
 }
+
+export interface TrustGraphAtomData {
+  topic: string;
+  weight: number;
+}
