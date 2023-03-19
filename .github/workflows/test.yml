@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-and-test:
-    timeout-minutes: 90
+    timeout-minutes: 180
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
