@@ -2,6 +2,7 @@ use hdk::prelude::*;
 use itertools::Itertools;
 use mews_integrity::*;
 use regex::Regex;
+use trust_atom_types::{QueryMineInput, TrustAtom, TrustAtomInput};
 
 fn get_my_mews_base(base_type: &str, ensure: bool) -> ExternResult<EntryHash> {
     let me: AgentPubKey = agent_info()?.agent_latest_pubkey;
@@ -263,6 +264,95 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
     Ok(feed)
 }
 
+#[hdk_extern]
+pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<FeedMew>> {
+    let oldest_mew_seconds = input.oldest_mew_seconds.unwrap_or(60 * 60 * 24 * 7 * 2);
+
+    // get all TrustAtoms -- topic/author combos "rated" by this agent
+    let topics_by_author: Vec<TrustAtom> = call_local_zome(
+        "trust_atom",
+        "query_mine",
+        QueryMineInput {
+            target: None,
+            content_full: None,
+            content_starts_with: None,
+            value_starts_with: None,
+        },
+    )?;
+
+    // filter for those TrustAtoms above a weight threshold (>= 0)
+    let recomended_topics_by_author =
+        topics_by_author
+            .into_iter()
+            .filter_map(|atom| match atom.value.clone() {
+                Some(value_string) => {
+                    let value_float: Result<f32, _> = value_string.parse();
+                    match value_float {
+                        Ok(value_float) => {
+                            if value_float >= 0f32 {
+                                Some(atom)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
+            });
+    // .collect();
+
+    let mut feed_mews: Vec<FeedMew> = recomended_topics_by_author
+        .flat_map(|atom| {
+            let followed_author = atom.target_hash;
+            match atom.content {
+                None => vec![], // TODO get all mews by this author
+                Some(content) => {
+                    let feed_mews_result = get_mews_with_hashtag_by_author(
+                        format!("#{}", content),
+                        AgentPubKey::from(EntryHash::from(followed_author)), // TODO both are fallible, should be `try_from`?
+                    );
+                    // debug!("feed_mews_result: {:#?}", feed_mews_result);
+                    match feed_mews_result {
+                        Ok(feed_mews) => feed_mews,
+                        Err(_) => vec![],
+                    }
+                }
+            }
+        })
+        .collect();
+
+    // TODO should we get other types: mewmews, quotes, etc
+
+    // TODO *maybe* also  order these posts according to some combination of: weight of tags and recency
+    // (don't want to see very old highly weighted at top)
+    // hmmm its complicated!  if only showing last time chunk, or (later) mews since last visit
+    // it really depends if that last chunk is 100 mews (chron fine) or 10,000 mews (then weight of tags is awesome)
+
+    // TODO consider mews that are 3 weeks old but have recent interaction, maybe even from trusted parties
+
+    // filter out any mews that are older than 2 weeks
+    // sort mews by weight of topic for that author
+
+    feed_mews.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
+
+    feed_mews = feed_mews
+        .into_iter()
+        .filter_map(|feed_mew| {
+            let allowed_age = core::time::Duration::new(oldest_mew_seconds, 0);
+            let oldest_allowed = input.now.saturating_sub(&allowed_age);
+
+            if feed_mew.action.timestamp() >= oldest_allowed {
+                Some(feed_mew)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(feed_mews)
+}
+
 // *** Liking ***
 
 #[hdk_extern]
@@ -323,9 +413,9 @@ pub fn unlick_mew(action_hash: ActionHash) -> ExternResult<()> {
 // *** Following ***
 
 #[hdk_extern]
-pub fn follow(agent: AgentPubKey) -> ExternResult<()> {
+pub fn follow(input: FollowInput) -> ExternResult<()> {
     let me_target: EntryHash = agent_info()?.agent_latest_pubkey.into();
-    let them_target: EntryHash = agent.clone().into();
+    let them_target: EntryHash = input.agent.clone().into();
 
     if me_target == them_target {
         return Err(wasm_error!(WasmErrorInner::Guest(String::from(
@@ -334,10 +424,23 @@ pub fn follow(agent: AgentPubKey) -> ExternResult<()> {
     }
 
     let me = get_my_mews_base(FOLLOWING_PATH_SEGMENT, true)?;
-    let _following_link_ah = create_link(me, them_target, LinkTypes::Follow, ())?;
+    let _following_link_ah = create_link(me, them_target.clone(), LinkTypes::Follow, ())?;
 
-    let them = get_mews_base(agent, FOLLOWER_PATH_SEGMENT, true)?;
+    let them = get_mews_base(input.agent, FOLLOWER_PATH_SEGMENT, true)?;
     let _follower_link_ah = create_link(them, me_target, LinkTypes::Follow, ())?;
+
+    for follow_topic in input.follow_topics {
+        let _: TrustAtom = call_local_zome(
+            "trust_atom",
+            "create_trust_atom",
+            TrustAtomInput {
+                target: AnyLinkableHash::from(them_target.clone()),
+                content: Some(follow_topic.topic),
+                value: Some(follow_topic.weight),
+                extra: None,
+            },
+        )?;
+    }
     Ok(())
 }
 
@@ -407,6 +510,15 @@ pub fn get_mews_with_hashtag(hashtag: String) -> ExternResult<Vec<FeedMew>> {
     get_mews_from_path(path)
 }
 
+fn get_mews_with_hashtag_by_author(
+    hashtag: String,
+    author: AgentPubKey,
+) -> ExternResult<Vec<FeedMew>> {
+    // debug!("search -- hashtags.{}", hashtag);
+    let path = Path::from(format!("hashtags.{}", hashtag));
+    get_mews_from_path_by_author(path, author)
+}
+
 #[hdk_extern]
 pub fn get_mews_with_cashtag(cashtag: String) -> ExternResult<Vec<FeedMew>> {
     let path = Path::from(format!("cashtags.{}", cashtag));
@@ -417,6 +529,23 @@ pub fn get_mews_with_cashtag(cashtag: String) -> ExternResult<Vec<FeedMew>> {
 pub fn get_mews_with_mention(agent_pub_key: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
     let path = Path::from(format!("mentions.{}", agent_pub_key));
     get_mews_from_path(path)
+}
+
+fn get_mews_from_path_by_author(path: Path, author: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
+    let mut full_path = path;
+    full_path.append_component(hdk::hash_path::path::Component::from("by".to_string()));
+    full_path.append_component(hdk::hash_path::path::Component::from(author.to_string()));
+
+    // full_path
+    //     .map(|c| String::try_from(&c))
+    //         .collect::<Result<Vec<String>, SerializedBytesError>>()
+
+    // let path_components: Vec<hdk::hash_path::path::Component> = full_path.clone().into();
+    // path_components
+    //     .into_iter()
+    //     .map(|component| debug!("component:-- {:?}", String::try_from(&component)));
+
+    get_mews_from_path(full_path)
 }
 
 pub fn get_mews_from_path(path: Path) -> ExternResult<Vec<FeedMew>> {
@@ -493,10 +622,18 @@ fn search_tags(path_stem: String, content: String) -> ExternResult<Vec<String>> 
 
 fn create_mew_tag_links(path_stem: &str, content: &str, mew_hash: ActionHash) -> ExternResult<()> {
     // Link from Path cashtags.mytag -> mew
+    // debug!("path --- {}.{}", path_stem, content);
     let path = Path::from(format!("{}.{}", path_stem, content));
     let path_hash = path.path_entry_hash()?;
     path.typed(LinkTypes::Tag)?.ensure()?;
-    let _link_ah = create_link(path_hash.clone(), mew_hash, LinkTypes::Tag, ())?;
+    create_link(path_hash, mew_hash.clone(), LinkTypes::Tag, ())?;
+
+    let me = agent_info()?.agent_latest_pubkey;
+    // debug!("path --- {}.{}.by.{}", path_stem, content, me);
+    let path = Path::from(format!("{}.{}.by.{}", path_stem, content, me));
+    let path_hash = path.path_entry_hash()?;
+    path.typed(LinkTypes::Tag)?.ensure()?;
+    create_link(path_hash.clone(), mew_hash, LinkTypes::Tag, ())?;
 
     // Create Path for sliced hashtag (first 3 characters) under hashtags_search.myt
     // Link from Path hashtags.myt -> hashtags.mytag Path
@@ -507,7 +644,7 @@ fn create_mew_tag_links(path_stem: &str, content: &str, mew_hash: ActionHash) ->
     let search_path = Path::from(format!("search_{}.{}", path_stem, prefix));
     let search_path_hash = search_path.path_entry_hash()?;
     search_path.typed(LinkTypes::TagPrefix)?.ensure()?;
-    let _link_search_tag = create_link(
+    create_link(
         search_path_hash,
         path_hash,
         LinkTypes::TagPrefix,
@@ -515,4 +652,43 @@ fn create_mew_tag_links(path_stem: &str, content: &str, mew_hash: ActionHash) ->
     )?;
 
     Ok(())
+}
+
+// HELPERS:
+
+pub fn call_local_zome<T, A>(zome_name: &str, fn_name: &str, input: A) -> ExternResult<T>
+where
+    T: serde::de::DeserializeOwned + std::fmt::Debug,
+    A: serde::Serialize + std::fmt::Debug,
+{
+    let response = call(
+        CallTargetCell::Local,
+        ZomeName::from(zome_name),
+        FunctionName::from(fn_name),
+        None,
+        input,
+    )?;
+
+    let result_io = match response {
+        ZomeCallResponse::Ok(bytes) => Ok(bytes),
+        ZomeCallResponse::Unauthorized(zome_call_auth, cell_id, zome, func, agent) => Err(
+            wasm_error!("ZomeCallResponse::Unauthorized: zome_call_auth: {:?}, cell_id: {:?}, zome: {:?}, func: {:?}, agent: {:?}", zome_call_auth, cell_id, zome, func, agent))
+        ,
+        ZomeCallResponse::NetworkError(message) => Err(wasm_error!("ZomeCallResponse::NetworkError: {}", message)),
+        ZomeCallResponse::CountersigningSession(message) => {
+            Err(wasm_error!("ZomeCallResponse::CountersigningSession: {}", message))
+        }
+    }?;
+
+    let result: T = result_io.decode().map_err(|error|
+        wasm_error!(
+            "Could not decode response to local zome call (zome: {}) (function: {}) (response length in bytes: {}): (message: {})",
+            zome_name,
+            fn_name,
+            result_io.as_bytes().len(),
+            error
+        )
+    )?;
+
+    Ok(result)
 }

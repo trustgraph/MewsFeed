@@ -61,8 +61,8 @@ export const mewsBy = async (
     typeof agent === "string" ? decodeHashFromBase64(agent) : agent
   );
 
-export const follow = async (agent: AgentPubKey): Promise<null> =>
-  callZome(MewsFn.Follow, agent);
+export const follow = async (input): Promise<null> =>
+  callZome(MewsFn.Follow, input);
 
 export const unfollow = async (agent: AgentPubKey): Promise<null> =>
   callZome(MewsFn.Unfollow, agent);
