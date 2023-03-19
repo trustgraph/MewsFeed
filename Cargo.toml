@@ -2,6 +2,11 @@
 members = ["dnas/*/zomes/coordinator/*", "dnas/*/zomes/integrity/*"]
 resolver = "2"
 
+# members = [
+#     "dnas/trust_atom_integrity_zome",
+#     "dnas/trust_atom_zome",
+# ]
+
 [workspace.dependencies]
 hdi = "=0.2.2"
 hdk = "=0.1.2"
