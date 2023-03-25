@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use mews_integrity::*;
 use regex::Regex;
-use trust_atom_types::TrustAtomInput;
+use trust_atom_types::{TrustAtomInput, QueryInput};
 
 fn get_my_mews_base(base_type: &str, ensure: bool) -> ExternResult<EntryHash> {
     let me: AgentPubKey = agent_info()?.agent_latest_pubkey;
@@ -258,8 +258,12 @@ pub fn mews_by(agent: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
 pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
     let mut feed = Vec::new();
     let me = agent_info()?.agent_latest_pubkey;
+    let all_follows_query_input = MyFollowQueryInput {
+        include_trust_atoms: None,
+        topic: None,
+    };
     feed.append(&mut mews_by(me)?);
-    for agent in my_following(())?.into_iter() {
+    for agent in my_following(all_follows_query_input)?.into_iter() {
         feed.append(&mut mews_by(agent)?);
     }
     // TODO don't really need to sort, could merge for efficiency
@@ -340,6 +344,28 @@ pub struct TrustAtomUiInput {
     weight: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, SerializedBytes)] // TODO: default include is false
+#[serde(rename_all = "camelCase")]
+pub struct FollowQueryInput {
+    agent: AgentPubKey,
+    include_trust_atoms: Option<bool>,
+    topic: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, SerializedBytes)] // TODO: default include is false
+#[serde(rename_all = "camelCase")]
+pub struct MyFollowQueryInput {
+    include_trust_atoms: Option<bool>,
+    topic: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, SerializedBytes)] // TODO: default include is false
+#[serde(rename_all = "camelCase")]
+pub struct FollowData {
+    agent: AgentPubKey,
+    trust_atoms: Vec<TrustAtomUiInput>, // TODO: rename input struct
+}
+
 #[hdk_extern]
 pub fn follow(input: FollowInput) -> ExternResult<()> {
     let me_target: EntryHash = agent_info()?.agent_latest_pubkey.into();
@@ -401,36 +427,67 @@ pub fn unfollow(agent: AgentPubKey) -> ExternResult<()> {
 }
 
 #[hdk_extern]
-pub fn my_following(_: ()) -> ExternResult<Vec<AgentPubKey>> {
+pub fn my_following(input: MyFollowQueryInput) -> ExternResult<Vec<AgentPubKey>> {
     let me = agent_info()?.agent_latest_pubkey;
-    follow_inner(me, FOLLOWING_PATH_SEGMENT)
+    follow_inner(me, input.include_trust_atoms, input.topic, FOLLOWING_PATH_SEGMENT)
 }
 
 #[hdk_extern]
-pub fn my_followers(_: ()) -> ExternResult<Vec<AgentPubKey>> {
+pub fn my_followers(input: MyFollowQueryInput) -> ExternResult<Vec<AgentPubKey>> {
     let me = agent_info()?.agent_latest_pubkey;
-    follow_inner(me, FOLLOWER_PATH_SEGMENT)
+    follow_inner(me, input.include_trust_atoms, input.topic, FOLLOWER_PATH_SEGMENT)
 }
 
 // get who an agent is following
 #[hdk_extern]
-pub fn following(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKey>> {
-    follow_inner(agent, FOLLOWING_PATH_SEGMENT)
+pub fn following(input: FollowQueryInput) -> ExternResult<Vec<AgentPubKey>> {
+    follow_inner(input.agent, input.include_trust_atoms, input.topic, FOLLOWING_PATH_SEGMENT)
 }
 
 // get followers of an agent
 #[hdk_extern]
-pub fn followers(agent: AgentPubKey) -> ExternResult<Vec<AgentPubKey>> {
-    follow_inner(agent, FOLLOWER_PATH_SEGMENT)
+pub fn followers(input: FollowQueryInput) -> ExternResult<Vec<AgentPubKey>> {
+    follow_inner(input.agent, input.include_trust_atoms, input.topic, FOLLOWER_PATH_SEGMENT)
 }
 
-fn follow_inner(agent: AgentPubKey, base_type: &str) -> ExternResult<Vec<AgentPubKey>> {
+fn follow_inner(agent: AgentPubKey, include_trust_atoms: Option<bool>, topic: Option<String>, base_type: &str) -> ExternResult<Vec<FollowData>> {
     let base = get_mews_base(agent, base_type, false)?;
     let links = get_links(base, LinkTypes::Follow, None)?;
+    let query_input = QueryInput {
+        source: Some(AnyLinkableHash::from(agent)),
+        target: None,
+        content_full: topic,
+        content_starts_with: None,
+        value_starts_with: None,
+    };
+
+    // if include_trust_atoms.is_some() {
+    //     let query_result = call(
+    //         CallTargetCell::Local,
+    //         ZomeName::from("trust_atom"),
+    //         FunctionName::from("query"),
+    //         None,
+    //         query_input,
+    //     )?;
+    //     if let Ok(response) = query_result {
+    //         for data in response.try_into()
+    //         let follow_data = FollowData {
+    //             agent,
+    //             trust_atoms: ,
+    //         };
+    //         return Ok(follow_data)
+    //     }
+    //     else {
+    //         return Err(wasm_error!("Something went wrong")) // TODO: say what the inputs were
+    //     }
+        
+    }
+    else {
     Ok(links
         .into_iter()
         .map(|link| AgentPubKey::from(EntryHash::from(link.target)).into())
         .collect())
+    }
 }
 
 // *** Tagging (hashtag, cashtag, mention) ***

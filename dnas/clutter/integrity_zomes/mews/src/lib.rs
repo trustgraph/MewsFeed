@@ -1,3 +1,4 @@
+
 use hdi::prelude::*;
 
 #[hdk_entry_defs]
@@ -22,6 +23,7 @@ pub enum LinkTarget {
     Mention(AgentPubKey),
     URL(String),
 }
+
 
 #[derive(Debug, Serialize, Deserialize, SerializedBytes)]
 #[serde(rename_all = "camelCase")]
