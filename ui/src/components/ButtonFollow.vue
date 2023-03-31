@@ -23,7 +23,6 @@ import { isSameHash } from "@/utils/hash";
 import { showError, showMessage } from "@/utils/notification";
 import { useMyProfile } from "@/utils/profile";
 import { AgentPubKey } from "@holochain/client";
-import { query_selector_all } from "svelte/internal";
 import { onMounted, PropType, ref } from "vue";
 
 const props = defineProps({
@@ -31,18 +30,7 @@ const props = defineProps({
     type: Object as PropType<AgentPubKey>,
     required: true,
   },
-//   topic: {
-//     type: String,
-//     required: false,
-//   },
-//   weight: {
-//     type: Number,
-//     required: false,
-//   },
 });
-
-const topic = ref("");
-const weight = ref(1.0);
 
 const profilesStore = useProfilesStore();
 const { runWhenMyProfileExists } = useMyProfile();
