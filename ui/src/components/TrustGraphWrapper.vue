@@ -29,17 +29,6 @@ const $q = useQuasar();
 
 defineEmits(["update:topic", "update:weight"]);
 
-// const props = defineProps({
-//   topic: {
-//     type: String,
-//     required: false,
-//   },
-//   weight: {
-//     type: Number,
-//     required: false,
-//   },
-// });
-
 const atoms = ref<TrustGraphAtomData[]>([]);
 
 const allTopics = ref(true);
