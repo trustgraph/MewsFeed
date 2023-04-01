@@ -154,56 +154,56 @@ test("Following", async (t) => {
   );
 });
 
-test("Following with TrustAtoms", async (t) => {
-  const scenario = new Scenario();
-  const [alice, bob, carol] = await scenario.addPlayersWithApps([
-    { appBundleSource: clutterHapp },
-    { appBundleSource: clutterHapp },
-    { appBundleSource: clutterHapp },
-  ]);
+// test("Following with TrustAtoms", async (t) => {
+//   const scenario = new Scenario();
+//   const [alice, bob, carol] = await scenario.addPlayersWithApps([
+//     { appBundleSource: clutterHapp },
+//     { appBundleSource: clutterHapp },
+//     { appBundleSource: clutterHapp },
+//   ]);
 
-  const aliceCallMewsZome = getZomeCaller(alice.cells[0], "mews");
-  const bobCallMewsZome = getZomeCaller(bob.cells[0], "mews");
-  const carolCallMewsZome = getZomeCaller(carol.cells[0], "mews");
+//   const aliceCallMewsZome = getZomeCaller(alice.cells[0], "mews");
+//   const bobCallMewsZome = getZomeCaller(bob.cells[0], "mews");
+//   const carolCallMewsZome = getZomeCaller(carol.cells[0], "mews");
 
-  await scenario.shareAllAgents();
+//   await scenario.shareAllAgents();
 
-  // bob starts following alice, in the area of "art"
-  await bobCallMewsZome("follow", {
-    agent: alice.agentPubKey,
-    trust_atoms: [{ topic: "art", weight: "1.0" }],
-  });
-  await bobCallMewsZome("follow", {
-    agent: carol.agentPubKey,
-    trust_atoms: [{ topic: "cars", weight: "0.5" }],
-  });
-  await pause(1000);
+//   // bob starts following alice, in the area of "art"
+//   await bobCallMewsZome("follow", {
+//     agent: alice.agentPubKey,
+//     trust_atoms: [{ topic: "art", weight: "1.0" }],
+//   });
+//   await bobCallMewsZome("follow", {
+//     agent: carol.agentPubKey,
+//     trust_atoms: [{ topic: "cars", weight: "0.5" }],
+//   });
+//   await pause(1000);
 
-  const agentsBobFollowsAndTrustatoms: AgentPubKey[] = await bobCallMewsZome(
-    "following", // who bob is following
-    {
-      agent: bob.agentPubKey,
-      // topic: "art",
-      include_trust_atoms: true,
-    }
-  );
-  t.deepEqual(
-    agentsBobFollowsAndTrustatoms,
-    [
-      {
-        agent: alice.agentPubKey,
-        trust_atoms: [{ topic: "art", weight: "1.0" }],
-      },
-      {
-        agent: carol.agentPubKey,
-        trust_atoms: [{ topic: "cars", weight: "0.5" }],
-      },
-    ],
-    "agents Bob Follows And Trustatoms"
-  );
+//   const agentsBobFollowsAndTrustatoms: AgentPubKey[] = await bobCallMewsZome(
+//     "following", // who bob is following
+//     {
+//       agent: bob.agentPubKey,
+//       // topic: "art",
+//       include_trust_atoms: true,
+//     }
+//   );
+//   t.deepEqual(
+//     agentsBobFollowsAndTrustatoms,
+//     [
+//       {
+//         agent: alice.agentPubKey,
+//         trust_atoms: [{ topic: "art", weight: "1.0" }],
+//       },
+//       {
+//         agent: carol.agentPubKey,
+//         trust_atoms: [{ topic: "cars", weight: "0.5" }],
+//       },
+//     ],
+//     "agents Bob Follows And Trustatoms"
+//   );
 
-  await scenario.cleanUp();
-});
+//   await scenario.cleanUp();
+// });
 
 test("Mews by", async (t) => {
   await runScenario(

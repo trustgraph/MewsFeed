@@ -41,7 +41,8 @@
     "new-port-cli": "^1.0.0",
     "prettier": "^2.6.2",
     "rimraf": "^3.0.2",
-    "run-singleton-cli": "^0.0.7"
+    "run-singleton-cli": "^0.0.7",
+    "vite-plugin-static-copy": "^0.13.1"
   },
   "engines": {
     "npm": ">=7.0.0"
