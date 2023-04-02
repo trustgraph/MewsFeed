@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use mews_integrity::*;
 use regex::Regex;
-use trust_atom_types::TrustAtomInput;
+use trust_atom_types::{QueryMineInput, TrustAtomInput};
 
 fn get_my_mews_base(base_type: &str, ensure: bool) -> ExternResult<EntryHash> {
     let me: AgentPubKey = agent_info()?.agent_latest_pubkey;
@@ -267,6 +267,68 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
     feed.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
 
     Ok(feed)
+}
+
+#[hdk_extern]
+pub fn recommended() -> ExternResult<Vec<FeedMew>> {
+    let mut feed = Vec::new();
+    let me = agent_info()?.agent_latest_pubkey;
+    // TODO figure out how to manage what call returns
+    let mut atoms: Vec<TrustAtom> = call(
+        CallTargetCell::Local,
+        ZomeName::from("trust_atom"),
+        FunctionName::from("query_mine"),
+        None,
+        QueryMineInput {
+            target: None,
+            content_full: None,
+            content_starts_with: None,
+            value_starts_with: None,
+        },
+    )?;
+
+    // filter for those TrustAtoms above a weight threshold (nominally >= 0)
+    feed = atoms
+        .into_iter()
+        .filter_map( |atom|
+            match(atom.value) {
+                Some(value_string) => {
+                    let value_decimal = Decimal::from_str(value_str.as_str());
+                    match (value_decimal) {
+                        Ok(value_decimal) => {
+                            if value_decimal >= Decimal::ZERO{
+                                Some(value_string)
+                            } else {
+                                None
+                            }
+                        },
+                        Err(error) => Err(wasm_error!(
+                            "Unexpected value: `{}`.  Error: `{}`",
+                            value_string,
+                            error
+                        )),
+                    }
+                },
+                None => Some(None), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
+            }
+        ).flat_map( |atom|
+            followed_author = atom.target ;
+            links_to_posts = get_links(followed_author, LinkTypes::Mew); // TODO we want to get only links for this hashtag: atom.content
+            // TODO should we get other types: mewmews, quotes, etc
+            links_to_posts.map(|link_to_post|
+                get_feed_mew_and_context(ActionHash::from(link_to_post.target).into())
+            )
+
+            // TODO: also get the creation date, either from the entry or the link itself
+
+        ).collect();
+        feed.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
+        // TODO *maybe* also  order these posts according to some combination of: weight of tags and recency
+        // (don't want to see very old highly weighted at top)
+        // *buttttt* maybe just chron is good!  if only showing last time chunk, or (later) mews since last visit
+        // it really depends if that last chunk is 100 mews (chron fine) or 10,000 mews (then weight of tags is awesome)
+
+        Ok(feed)
 }
 
 // *** Liking ***
