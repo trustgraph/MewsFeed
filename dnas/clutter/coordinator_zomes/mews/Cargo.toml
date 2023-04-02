@@ -11,8 +11,11 @@ name = "mews"
 derive_more = "0"
 regex = "1"
 serde = "1"
+thiserror = "1"
 
 mews_integrity = {path = "../../integrity_zomes/mews"}
+# trust_atom_types = {git = "https://github.com/trustgraph/trustgraph-holochain.git", package = "trust_atom_types"}
+trust_atom_types = { path= "/Users/knight/code/trustgraph/trustgraph-holochain/zomes/trust_atom_types"}
 hdk = {version = "0.1", features = ["encoding"]}
 
 [dev-dependencies]
