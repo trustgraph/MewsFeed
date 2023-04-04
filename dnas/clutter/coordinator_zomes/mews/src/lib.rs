@@ -1,7 +1,6 @@
 use hdk::prelude::*;
 use mews_integrity::*;
 use regex::Regex;
-use thiserror::Error;
 use trust_atom_types::{QueryMineInput, TrustAtom};
 
 fn get_my_mews_base(base_type: &str, ensure: bool) -> ExternResult<EntryHash> {
@@ -310,27 +309,34 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
         )?;
 
     // filter for those TrustAtoms above a weight threshold (nominally >= 0)
-    feed = atoms
-        .into_iter()
-        .filter_map(|atom| match atom.value {
-            Some(value_string) => {
-                let value_float: Result<f32, _> = value_string.parse();
-                match value_float {
-                    Ok(value_float) => {
-                        if value_float >= 0f32 {
-                            Some(atom)
-                        } else {
-                            None
-                        }
+    let recomended_author_atoms = atoms.into_iter().filter_map(|atom| match atom.value {
+        Some(value_string) => {
+            let value_float: Result<f32, _> = value_string.parse();
+            match value_float {
+                Ok(value_float) => {
+                    if value_float >= 0f32 {
+                        Some(atom)
+                    } else {
+                        None
                     }
-                    _ => None,
                 }
+                _ => None,
             }
-            None => None,
-        })
+        }
+        None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
+    });
+
+    let mews = recomended_author_atoms
         .filter_map(|atom| {
+            match atom.content {
+                Some(content) => get_mews_with_hashtag(atom.content),
+                None => None,
+            }
             let followed_author = atom.target_hash;
-            get_links(followed_author, LinkTypes::Mew, None)?
+            match get_links(followed_author, LinkTypes::Mew, None) {
+                Ok(links) => Some(links),
+                Err(_) => None, // throw away any links that error // TODO can we log this somewhere?
+            }
             // TODO we want to get only links for this hashtag: atom.content                                                                                    // TODO should we get other types: mewmews, quotes, etc
         })
         .flat_map(|links_to_posts| {
@@ -349,92 +355,6 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
     // it really depends if that last chunk is 100 mews (chron fine) or 10,000 mews (then weight of tags is awesome)
 
     Ok(feed)
-}
-
-// TODO move these utils to elsewhere:
-
-pub fn call_local_zome<T, A>(zome: &str, func: &str, input: A) -> AppResult<T>
-where
-    T: serde::de::DeserializeOwned + std::fmt::Debug,
-    A: serde::Serialize + std::fmt::Debug,
-{
-    let response = call(CallTargetCell::Local, zome, func.into(), None, input)?;
-
-    Ok(interpret_zome_response(response)?)
-}
-
-fn interpret_zome_response<T>(response: ZomeCallResponse) -> AppResult<T>
-where
-    T: serde::de::DeserializeOwned + std::fmt::Debug,
-{
-    let result_io = zome_call_response_as_result(response)?;
-    // let essence: DevHubResponse<T> = result_io.decode().map_err(|e| {
-    //     AppError::DeserializeError(format!(
-    //         "Could not decode Essence response ({} bytes): {}",
-    //         result_io.as_bytes().len(),
-    //         e
-    //     ))
-    // })?;
-
-    // Ok(essence.as_result()?)
-}
-
-fn zome_call_response_as_result(response: ZomeCallResponse) -> AppResult<zome_io::ExternIO> {
-    Ok(match response {
-        ZomeCallResponse::Ok(bytes) => Ok(bytes),
-        ZomeCallResponse::Unauthorized(zome_call_auth, cell_id, zome, func, agent) => Err(
-            AppError::UnauthorizedError(zome_call_auth, cell_id, zome, func, agent),
-        ),
-        ZomeCallResponse::NetworkError(message) => Err(AppError::NetworkError(message)),
-        ZomeCallResponse::CountersigningSession(message) => {
-            Err(AppError::CountersigningSessionError(message))
-        }
-    }?)
-}
-
-#[derive(Debug, Error)]
-pub enum AppError {
-    #[error("Unexpected state: {0}")]
-    UnexpectedStateError(String),
-
-    #[error(
-        "Agent '{4}' does not have the capability to call {1}::{2}->{3}( [args] ) because; {0}"
-    )]
-    UnauthorizedError(
-        ZomeCallAuthorization,
-        CellId,
-        ZomeName,
-        FunctionName,
-        AgentPubKey,
-    ),
-
-    #[error("{0}")]
-    NetworkError(String),
-
-    #[error("{0}")]
-    CountersigningSessionError(String),
-
-    #[error("{0}")]
-    DeserializeError(String),
-}
-
-pub type AppResult<T> = Result<T, ErrorKinds>;
-
-#[derive(Debug, Error)]
-pub enum ErrorKinds {
-    #[error(transparent)]
-    AppError(AppError),
-    // #[error(transparent)]
-    // UserError(UserError),
-
-    // #[error(transparent)]
-    // DnaUtilsError(UtilsError),
-
-    // #[error(transparent)]
-    // FailureResponseError(EssenceError),
-
-    // #[error(transparent)]
-    // HDKError(WasmError), // catch all for unhandled errors
 }
 
 // *** Liking ***
@@ -582,6 +502,14 @@ pub fn get_mews_with_hashtag(hashtag: String) -> ExternResult<Vec<FeedMew>> {
 }
 
 #[hdk_extern]
+pub fn get_mews_with_hashtag_by_author(
+    (hashtag, author): (String, AgentPubKey),
+) -> ExternResult<Vec<FeedMew>> {
+    let path = Path::from(format!("hashtags.{}", hashtag));
+    Ok(get_mews_from_path_by_author(path, author)?)
+}
+
+#[hdk_extern]
 pub fn get_mews_with_cashtag(cashtag: String) -> ExternResult<Vec<FeedMew>> {
     let path = Path::from(format!("cashtags.{}", cashtag));
     Ok(get_mews_from_path(path)?)
@@ -608,6 +536,10 @@ pub fn get_mews_from_path(path: Path) -> ExternResult<Vec<FeedMew>> {
         .collect();
     mews.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
     Ok(mews)
+}
+
+pub fn get_mews_from_path_by_author(path: Path, author: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
+    unimplemented!()
 }
 
 pub fn parse_mew_text(mew_content: MewContent, mew_hash: ActionHash) -> ExternResult<()> {
@@ -670,7 +602,11 @@ fn create_mew_tag_links(path_stem: &str, content: &str, mew_hash: ActionHash) ->
     let path = Path::from(format!("{}.{}", path_stem, content));
     let path_hash = path.path_entry_hash()?;
     path.typed(LinkTypes::Tag)?.ensure()?;
-    let _link_ah = create_link(path_hash.clone(), mew_hash, LinkTypes::Tag, ())?;
+    let _link_ah = create_link(path_hash.clone(), mew_hash.clone(), LinkTypes::Tag, ())?;
+
+    // Link from Path author -> mew with link tag (eg) `cashtags.mytag`
+    let me = agent_info()?.agent_latest_pubkey;
+    let _link_ah = create_link(me, mew_hash, LinkTypes::Tag, ())?;
 
     // Create Path for sliced hashtag (first 3 characters) under hashtags_search.myt
     // Link from Path hashtags.myt -> hashtags.mytag Path
