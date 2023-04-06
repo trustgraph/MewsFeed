@@ -273,7 +273,6 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
 pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
     let mut feed = Vec::new();
     let me = agent_info()?.agent_latest_pubkey;
-    // TODO figure out how to manage what call returns
     let response = call(
         CallTargetCell::Local,
         ZomeName::from("trust_atom"),
@@ -309,46 +308,59 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
         )?;
 
     // filter for those TrustAtoms above a weight threshold (nominally >= 0)
-    let recomended_author_atoms = atoms.into_iter().filter_map(|atom| match atom.value {
-        Some(value_string) => {
-            let value_float: Result<f32, _> = value_string.parse();
-            match value_float {
-                Ok(value_float) => {
-                    if value_float >= 0f32 {
-                        Some(atom)
-                    } else {
-                        None
+    let recomended_tags_by_author = atoms
+        .into_iter()
+        .filter_map(|atom| match atom.value.clone() {
+            Some(value_string) => {
+                let value_float: Result<f32, _> = value_string.parse();
+                match value_float {
+                    Ok(value_float) => {
+                        if value_float >= 0f32 {
+                            Some(atom)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
+            }
+            None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
+        });
+
+    let mut feed_mews = recomended_tags_by_author
+        .map(|atom| {
+            let followed_author = atom.target_hash;
+            match atom.content {
+                None => vec![],
+                Some(content) => {
+                    let feed_mews_result = get_mews_with_hashtag_by_author(
+                        content,
+                        AgentPubKey::from(EntryHash::from(followed_author)),
+                    );
+                    match feed_mews_result {
+                        Ok(feed_mews) => feed_mews,
+                        Err(_) => vec![],
                     }
                 }
-                _ => None,
             }
-        }
-        None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
-    });
-
-    let mews = recomended_author_atoms
-        .filter_map(|atom| {
-            match atom.content {
-                Some(content) => get_mews_with_hashtag(atom.content),
-                None => None,
-            }
-            let followed_author = atom.target_hash;
-            match get_links(followed_author, LinkTypes::Mew, None) {
-                Ok(links) => Some(links),
-                Err(_) => None, // throw away any links that error // TODO can we log this somewhere?
-            }
-            // TODO we want to get only links for this hashtag: atom.content                                                                                    // TODO should we get other types: mewmews, quotes, etc
         })
-        .flat_map(|links_to_posts| {
-            // TODO should we get other types: mewmews, quotes, etc
-            links_to_posts.into_iter().map(|link_to_post| {
-                get_feed_mew_and_context(ActionHash::from(link_to_post.target).into())
-            })
+        .flatten()
+        .collect::<Vec<FeedMew>>();
 
-            // TODO: also get the creation date, either from the entry or the link itself
-        })
-        .collect();
-    feed.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
+    // match get_links(followed_author, LinkTypes::Mew, None) {
+    //     Ok(links) => Some(links),
+    //     Err(_) => None, // throw away any links that error // TODO can we log this somewhere?
+    // }
+    // TODO we want to get only links for this hashtag: atom.content                                                                                    // TODO should we get other types: mewmews, quotes, etc
+    // .flat_map(|links_to_posts| {
+    //     // TODO should we get other types: mewmews, quotes, etc
+    //     links_to_posts.into_iter().map(|link_to_post| {
+    //         get_feed_mew_and_context(ActionHash::from(link_to_post.target).into())
+    //     })
+    //     // TODO: also get the creation date, either from the entry or the link itself
+    // })
+
+    feed_mews.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
     // TODO *maybe* also  order these posts according to some combination of: weight of tags and recency
     // (don't want to see very old highly weighted at top)
     // *buttttt* maybe just chron is good!  if only showing last time chunk, or (later) mews since last visit
@@ -501,9 +513,9 @@ pub fn get_mews_with_hashtag(hashtag: String) -> ExternResult<Vec<FeedMew>> {
     Ok(get_mews_from_path(path)?)
 }
 
-#[hdk_extern]
-pub fn get_mews_with_hashtag_by_author(
-    (hashtag, author): (String, AgentPubKey),
+fn get_mews_with_hashtag_by_author(
+    hashtag: String,
+    author: AgentPubKey,
 ) -> ExternResult<Vec<FeedMew>> {
     let path = Path::from(format!("hashtags.{}", hashtag));
     Ok(get_mews_from_path_by_author(path, author)?)
@@ -521,6 +533,13 @@ pub fn get_mews_with_mention(agent_pub_key: AgentPubKey) -> ExternResult<Vec<Fee
     Ok(get_mews_from_path(path)?)
 }
 
+fn get_mews_from_path_by_author(path: Path, author: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
+    let mut full_path = path.clone();
+    full_path.append_component(hdk::hash_path::path::Component::from("by".to_string()));
+    full_path.append_component(hdk::hash_path::path::Component::from(author.to_string()));
+    get_mews_from_path(path)
+}
+
 pub fn get_mews_from_path(path: Path) -> ExternResult<Vec<FeedMew>> {
     let path_hash = path.path_entry_hash()?;
 
@@ -536,10 +555,6 @@ pub fn get_mews_from_path(path: Path) -> ExternResult<Vec<FeedMew>> {
         .collect();
     mews.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
     Ok(mews)
-}
-
-pub fn get_mews_from_path_by_author(path: Path, author: AgentPubKey) -> ExternResult<Vec<FeedMew>> {
-    unimplemented!()
 }
 
 pub fn parse_mew_text(mew_content: MewContent, mew_hash: ActionHash) -> ExternResult<()> {
