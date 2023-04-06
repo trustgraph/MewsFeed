@@ -429,9 +429,9 @@ pub fn unlick_mew(action_hash: ActionHash) -> ExternResult<()> {
 // *** Following ***
 
 #[hdk_extern]
-pub fn follow(agent: AgentPubKey) -> ExternResult<()> {
+pub fn follow(input: FollowInput) -> ExternResult<()> {
     let me_target: EntryHash = agent_info()?.agent_latest_pubkey.into();
-    let them_target: EntryHash = AgentPubKey::from(agent.clone()).into();
+    let them_target: EntryHash = AgentPubKey::from(input.agent.clone()).into();
 
     if me_target == them_target {
         return Err(wasm_error!(WasmErrorInner::Guest(String::from(
@@ -440,10 +440,25 @@ pub fn follow(agent: AgentPubKey) -> ExternResult<()> {
     }
 
     let me = get_my_mews_base(FOLLOWING_PATH_SEGMENT, true)?;
-    let _following_link_ah = create_link(me, them_target, LinkTypes::Follow, ())?;
+    let _following_link_ah = create_link(me, them_target.clone(), LinkTypes::Follow, ())?;
 
-    let them = get_mews_base(agent, FOLLOWER_PATH_SEGMENT, true)?;
+    let them = get_mews_base(input.agent, FOLLOWER_PATH_SEGMENT, true)?;
     let _follower_link_ah = create_link(them, me_target, LinkTypes::Follow, ())?;
+
+    for trust_atom_data in input.trust_atoms {
+        call(
+            CallTargetCell::Local,
+            ZomeName::from("trust_atom"),
+            FunctionName::from("create_trust_atom"),
+            None,
+            QueryMineInput {
+                target: Some(AnyLinkableHash::from(them_target.clone())),
+                content_full: Some(trust_atom_data.topic),
+                content_starts_with: None,
+                value_starts_with: Some(trust_atom_data.weight),
+            },
+        )?;
+    }
     Ok(())
 }
 

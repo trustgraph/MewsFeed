@@ -31,6 +31,20 @@ pub struct CreateMewInput {
     pub links: Option<Vec<LinkTarget>>,
 }
 
+#[derive(Debug, Serialize, Deserialize, SerializedBytes)]
+#[serde(rename_all = "camelCase")]
+pub struct FollowInput {
+    pub agent: AgentPubKey,
+    pub trust_atoms: Vec<TrustAtomInput>,
+}
+
+#[derive(Debug, Serialize, Deserialize, SerializedBytes)]
+#[serde(rename_all = "camelCase")]
+pub struct TrustAtomInput {
+    pub topic: String,
+    pub weight: String,
+}
+
 #[hdk_entry_helper]
 #[serde(rename_all = "camelCase")]
 #[derive(Clone)]

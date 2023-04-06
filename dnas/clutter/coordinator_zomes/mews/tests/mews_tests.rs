@@ -34,6 +34,8 @@ pub async fn mew_can_be_200_chars() {
     assert_eq!(leading_bytes, &[132, 41, 36]);
 }
 
+// SETUP:
+
 async fn setup_1_conductor() -> (SweetConductor, AgentPubKey, SweetCell) {
     let dna = SweetDnaFile::from_bundle(std::path::Path::new(DNA_FILEPATH))
         .await
