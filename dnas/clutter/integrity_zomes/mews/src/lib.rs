@@ -35,12 +35,12 @@ pub struct CreateMewInput {
 #[serde(rename_all = "camelCase")]
 pub struct FollowInput {
     pub agent: AgentPubKey,
-    pub trust_atoms: Vec<TrustAtomInput>,
+    pub follow_topics: Vec<FollowTopicInput>,
 }
 
 #[derive(Debug, Serialize, Deserialize, SerializedBytes)]
 #[serde(rename_all = "camelCase")]
-pub struct TrustAtomInput {
+pub struct FollowTopicInput {
     pub topic: String,
     pub weight: String,
 }

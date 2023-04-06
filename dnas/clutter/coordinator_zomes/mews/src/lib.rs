@@ -1,7 +1,7 @@
 use hdk::prelude::*;
 use mews_integrity::*;
 use regex::Regex;
-use trust_atom_types::{QueryMineInput, TrustAtom};
+use trust_atom_types::{QueryMineInput, TrustAtom, TrustAtomInput};
 
 fn get_my_mews_base(base_type: &str, ensure: bool) -> ExternResult<EntryHash> {
     let me: AgentPubKey = agent_info()?.agent_latest_pubkey;
@@ -273,11 +273,9 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
 pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
     let mut feed = Vec::new();
     let me = agent_info()?.agent_latest_pubkey;
-    let response = call(
-        CallTargetCell::Local,
-        ZomeName::from("trust_atom"),
-        FunctionName::from("query_mine"),
-        None,
+    let atoms: Vec<TrustAtom> = call_local_zome(
+        "trust_atom",
+        "query_mine",
         QueryMineInput {
             target: None,
             content_full: None,
@@ -285,27 +283,6 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
             value_starts_with: None,
         },
     )?;
-
-    let result_io = match response {
-        ZomeCallResponse::Ok(bytes) => Ok(bytes),
-        ZomeCallResponse::Unauthorized(zome_call_auth, cell_id, zome, func, agent) => Err(
-            wasm_error!("ZomeCallResponse::Unauthorized: zome_call_auth: {:?}, cell_id: {:?}, zome: {:?}, func: {:?}, agent: {:?}", zome_call_auth, cell_id, zome, func, agent))
-        ,
-        ZomeCallResponse::NetworkError(message) => Err(wasm_error!("ZomeCallResponse::NetworkError: {}", message)),
-        ZomeCallResponse::CountersigningSession(message) => {
-            Err(wasm_error!("ZomeCallResponse::CountersigningSession: {}", message))
-        }
-    }?;
-
-    let atoms: Vec<TrustAtom> = result_io.decode().map_err(|e|
-            wasm_error!(
-                "Could not decode response to local zome call (zome: {}) (function: {}) (response bytes: {}): {}",
-                "trust_atom",  // TODO make this a util func, pass in zome and func name
-                "query_mine",
-                result_io.as_bytes().len(),
-                e
-            )
-        )?;
 
     // filter for those TrustAtoms above a weight threshold (nominally >= 0)
     let recomended_tags_by_author = atoms
@@ -445,17 +422,15 @@ pub fn follow(input: FollowInput) -> ExternResult<()> {
     let them = get_mews_base(input.agent, FOLLOWER_PATH_SEGMENT, true)?;
     let _follower_link_ah = create_link(them, me_target, LinkTypes::Follow, ())?;
 
-    for trust_atom_data in input.trust_atoms {
-        call(
-            CallTargetCell::Local,
-            ZomeName::from("trust_atom"),
-            FunctionName::from("create_trust_atom"),
-            None,
-            QueryMineInput {
-                target: Some(AnyLinkableHash::from(them_target.clone())),
-                content_full: Some(trust_atom_data.topic),
-                content_starts_with: None,
-                value_starts_with: Some(trust_atom_data.weight),
+    for follow_topic in input.follow_topics {
+        let _: TrustAtom = call_local_zome(
+            "trust_atom",
+            "create_trust_atom",
+            TrustAtomInput {
+                target: AnyLinkableHash::from(them_target.clone()),
+                content: Some(follow_topic.topic),
+                value: Some(follow_topic.weight),
+                extra: None,
             },
         )?;
     }
@@ -655,4 +630,43 @@ fn create_mew_tag_links(path_stem: &str, content: &str, mew_hash: ActionHash) ->
     )?;
 
     Ok(())
+}
+
+// HELPERS:
+
+pub fn call_local_zome<T, A>(zome_name: &str, fn_name: &str, input: A) -> ExternResult<T>
+where
+    T: serde::de::DeserializeOwned + std::fmt::Debug,
+    A: serde::Serialize + std::fmt::Debug,
+{
+    let response = call(
+        CallTargetCell::Local,
+        ZomeName::from(zome_name),
+        FunctionName::from(fn_name),
+        None,
+        input,
+    )?;
+
+    let result_io = match response {
+        ZomeCallResponse::Ok(bytes) => Ok(bytes),
+        ZomeCallResponse::Unauthorized(zome_call_auth, cell_id, zome, func, agent) => Err(
+            wasm_error!("ZomeCallResponse::Unauthorized: zome_call_auth: {:?}, cell_id: {:?}, zome: {:?}, func: {:?}, agent: {:?}", zome_call_auth, cell_id, zome, func, agent))
+        ,
+        ZomeCallResponse::NetworkError(message) => Err(wasm_error!("ZomeCallResponse::NetworkError: {}", message)),
+        ZomeCallResponse::CountersigningSession(message) => {
+            Err(wasm_error!("ZomeCallResponse::CountersigningSession: {}", message))
+        }
+    }?;
+
+    let result: T = result_io.decode().map_err(|error|
+        wasm_error!(
+            "Could not decode response to local zome call (zome: {}) (function: {}) (response length in bytes: {}): (message: {})",
+            zome_name,
+            fn_name,
+            result_io.as_bytes().len(),
+            error
+        )
+    )?;
+
+    Ok(result)
 }
