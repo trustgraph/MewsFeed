@@ -3432,7 +3432,9 @@ dependencies = [
  "mews_integrity",
  "regex",
  "serde",
+ "thiserror",
  "tokio",
+ "trust_atom_types 0.1.1-dev",
 ]
 
 [[package]]
@@ -6183,7 +6185,7 @@ dependencies = [
  "rust_decimal",
  "serde",
  "trust_atom_integrity",
- "trust_atom_types",
+ "trust_atom_types 0.1.1-dev (git+https://github.com/trustgraph/trustgraph-holochain.git)",
 ]
 
 [[package]]
@@ -6204,6 +6206,14 @@ dependencies = [
  "rust_decimal",
  "serde",
  "trust_atom_integrity",
+]
+
+[[package]]
+name = "trust_atom_types"
+version = "0.1.1-dev"
+dependencies = [
+ "hdk",
+ "serde",
 ]
 
 [[package]]

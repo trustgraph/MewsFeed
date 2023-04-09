@@ -271,8 +271,8 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
 
 #[hdk_extern]
 pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
-    let mut feed = Vec::new();
-    let me = agent_info()?.agent_latest_pubkey;
+    // let feed = Vec::new();
+    // let me = agent_info()?.agent_latest_pubkey;
     let atoms: Vec<TrustAtom> = call_local_zome(
         "trust_atom",
         "query_mine",
@@ -304,7 +304,7 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
             None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
         });
 
-    let mut feed_mews = recomended_tags_by_author
+    let mut feed_mews: Vec<FeedMew> = recomended_tags_by_author
         .map(|atom| {
             let followed_author = atom.target_hash;
             match atom.content {
@@ -322,7 +322,7 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
             }
         })
         .flatten()
-        .collect::<Vec<FeedMew>>();
+        .collect();
 
     // match get_links(followed_author, LinkTypes::Mew, None) {
     //     Ok(links) => Some(links),
@@ -343,7 +343,7 @@ pub fn recommended(_: ()) -> ExternResult<Vec<FeedMew>> {
     // *buttttt* maybe just chron is good!  if only showing last time chunk, or (later) mews since last visit
     // it really depends if that last chunk is 100 mews (chron fine) or 10,000 mews (then weight of tags is awesome)
 
-    Ok(feed)
+    Ok(feed_mews)
 }
 
 // *** Liking ***
