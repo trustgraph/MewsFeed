@@ -9,17 +9,17 @@ use holochain::test_utils::consistency_10s;
 use mews_integrity::*;
 
 const DNA_FILEPATH: &str = "../../workdir/clutter.dna";
-const ZOME_NAME: &str = "clutter";
+const ZOME_NAME: &str = "mews";
 
 #[tokio::test(flavor = "multi_thread")]
-async fn trustd_feed_is_based_on_follow_topics() {
+async fn trusted_feed_is_based_on_follow_topics() {
     // Use prebuilt DNA file
     let dna_path = std::env::current_dir().unwrap().join(DNA_FILEPATH);
     let dna = SweetDnaFile::from_bundle(&dna_path).await.unwrap();
 
     // Set up conductors
     let mut conductors = SweetConductorBatch::from_config(3, ConductorConfig::default()).await;
-    let apps = conductors.setup_app("clutter", &[dna]).await.unwrap();
+    let apps = conductors.setup_app(ZOME_NAME, &[dna]).await.unwrap();
     conductors.exchange_peer_info().await;
 
     let ((ann,), (bob,), (cat,)) = apps.into_tuples();
@@ -32,7 +32,7 @@ async fn trustd_feed_is_based_on_follow_topics() {
     // let bob_conductor = conductors[1].clone();
     // let cat_conductor = conductors[2].clone();
 
-    let _entry_hash: EntryHash = conductors[0]
+    let _: () = conductors[0]
         .call(
             &ann_zome,
             "follow",

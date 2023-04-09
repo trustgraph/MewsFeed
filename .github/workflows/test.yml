@@ -47,5 +47,8 @@ jobs:
       - name: Build Happ
         run: nix develop -c $SHELL -c "npm run build:happ"
 
+      - name: Test with sweettest
+        run: nix develop -c $SHELL -c "npm test:sweet"
+
       - name: Test with tryorama
         run: nix develop -c $SHELL -c "npm test"
