@@ -314,7 +314,7 @@ pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<TrustFeedMew>> {
                 Some(content) => {
                     let feed_mews_result = get_mews_with_hashtag_by_author(
                         format!("#{}", content), // add # (hash) to make it a hashtag
-                        AgentPubKey::from(EntryHash::from(followed_author.clone())), // TODO both are fallible, should be `try_from`?
+                        AgentPubKey::from(EntryHash::from(followed_author)), // TODO both are fallible, should be `try_from`?
                     );
                     // debug!("feed_mews_result: {:#?}", feed_mews_result);
                     match feed_mews_result {
@@ -325,7 +325,7 @@ pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<TrustFeedMew>> {
                                 weight: atom
                                     .value
                                     .clone()
-                                    .unwrap_or(String::from("0"))
+                                    .unwrap_or_else(|| String::from("0"))
                                     .parse::<f32>()
                                     .unwrap_or(0.0),
                                 topic: atom.content.clone(),
