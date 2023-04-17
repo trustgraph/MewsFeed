@@ -265,7 +265,7 @@ pub fn mews_feed(_options: FeedOptions) -> ExternResult<Vec<FeedMew>> {
 }
 
 #[hdk_extern]
-pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<FeedMew>> {
+pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<TrustFeedMew>> {
     let oldest_mew_seconds = input.oldest_mew_seconds.unwrap_or(60 * 60 * 24 * 7 * 2);
 
     // get all TrustAtoms -- topic/author combos "rated" by this agent
@@ -290,6 +290,11 @@ pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<FeedMew>> {
                     match value_float {
                         Ok(value_float) => {
                             if value_float >= 0f32 {
+                                // let key = format!(
+                                //     "{}{}",
+                                //     atom.target_hash.clone(),
+                                //     atom.content.clone().unwrap_or(String::from(""))
+                                // );
                                 Some(atom)
                             } else {
                                 None
@@ -298,23 +303,34 @@ pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<FeedMew>> {
                         _ => None,
                     }
                 }
-                None => Some(atom), // trust atoms with no value typically mean "yup" without a specific "percent/weight"
+                None => None, // null value/weight is allowed in TrustAtom lib, but not in MewsFeed
             });
-    // .collect();
 
-    let mut feed_mews: Vec<FeedMew> = recomended_topics_by_author
+    let mut trust_feed_mews: Vec<TrustFeedMew> = recomended_topics_by_author
         .flat_map(|atom| {
-            let followed_author = atom.target_hash;
-            match atom.content {
+            let followed_author = atom.target_hash.clone();
+            match atom.content.clone() {
                 None => vec![], // TODO get all mews by this author
                 Some(content) => {
                     let feed_mews_result = get_mews_with_hashtag_by_author(
-                        format!("#{}", content),
-                        AgentPubKey::from(EntryHash::from(followed_author)), // TODO both are fallible, should be `try_from`?
+                        format!("#{}", content), // add # (hash) to make it a hashtag
+                        AgentPubKey::from(EntryHash::from(followed_author.clone())), // TODO both are fallible, should be `try_from`?
                     );
                     // debug!("feed_mews_result: {:#?}", feed_mews_result);
                     match feed_mews_result {
-                        Ok(feed_mews) => feed_mews,
+                        Ok(feed_mews) => feed_mews
+                            .into_iter()
+                            .map(|feed_mew| TrustFeedMew {
+                                feed_mew,
+                                weight: atom
+                                    .value
+                                    .clone()
+                                    .unwrap_or(String::from("0"))
+                                    .parse::<f32>()
+                                    .unwrap_or(0.0),
+                                topic: atom.content.clone(),
+                            })
+                            .collect(),
                         Err(_) => vec![],
                     }
                 }
@@ -334,23 +350,27 @@ pub fn recommended(input: RecommendedInput) -> ExternResult<Vec<FeedMew>> {
     // filter out any mews that are older than 2 weeks
     // sort mews by weight of topic for that author
 
-    feed_mews.sort_by(|a, b| b.action.timestamp().cmp(&a.action.timestamp()));
-
-    feed_mews = feed_mews
+    trust_feed_mews = trust_feed_mews
         .into_iter()
-        .filter_map(|feed_mew| {
+        .filter_map(|trust_feed_mew| {
             let allowed_age = core::time::Duration::new(oldest_mew_seconds, 0);
             let oldest_allowed = input.now.saturating_sub(&allowed_age);
 
-            if feed_mew.action.timestamp() >= oldest_allowed {
-                Some(feed_mew)
+            if trust_feed_mew.feed_mew.action.timestamp() >= oldest_allowed {
+                Some(trust_feed_mew)
             } else {
                 None
             }
         })
         .collect();
 
-    Ok(feed_mews)
+    trust_feed_mews.sort_by(|a, b| {
+        b.weight
+            .partial_cmp(&a.weight)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(trust_feed_mews)
 }
 
 // *** Liking ***

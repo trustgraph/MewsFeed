@@ -89,6 +89,14 @@ pub struct FeedMew {
     pub mewmews: Vec<AnyLinkableHash>,
 }
 
+#[hdk_entry_helper]
+#[serde(rename_all = "camelCase")]
+pub struct TrustFeedMew {
+    pub feed_mew: FeedMew,
+    pub weight: f32,
+    pub topic: Option<String>,
+}
+
 #[hdk_link_types]
 pub enum LinkTypes {
     Mew,

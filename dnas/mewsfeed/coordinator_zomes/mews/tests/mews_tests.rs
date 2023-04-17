@@ -4,9 +4,7 @@ use serial_test::serial;
 
 use hdk::prelude::*;
 use holochain::conductor::config::ConductorConfig;
-use holochain::sweettest::{
-    SweetCell, SweetConductor, SweetConductorBatch, SweetDnaFile, SweetZome,
-};
+use holochain::sweettest::{SweetCell, SweetConductor, SweetConductorBatch, SweetDnaFile, SweetZome};
 use holochain::test_utils::consistency_10s;
 
 use mews_integrity::*; // for the types
@@ -58,12 +56,7 @@ async fn trusted_feed_is_based_on_follow_topics() {
     })
     .await;
 
-    consistency_10s([
-        &(ann.cell.clone()),
-        &(bob.cell.clone()),
-        &(cat.cell.clone()),
-    ])
-    .await;
+    consistency_10s([&(ann.cell.clone()), &(bob.cell.clone()), &(cat.cell.clone())]).await;
 
     let recommended_feed = ann
         .recommended(RecommendedInput {
@@ -73,10 +66,7 @@ async fn trusted_feed_is_based_on_follow_topics() {
         .await;
 
     assert_eq!(recommended_feed.len(), 1);
-    assert_eq!(
-        recommended_feed[0].mew.content.as_ref().unwrap().text,
-        String::from("Wow #holochain is cool!")
-    );
+    assert_eq!(recommended_feed[0].feed_mew.mew.content.as_ref().unwrap().text, String::from("Wow #holochain is cool!"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -126,10 +116,7 @@ async fn trusted_feed_is_filtered_by_recency() {
         .await;
 
     assert_eq!(recommended_feed.len(), 1);
-    assert_eq!(
-        recommended_feed[0].mew.content.as_ref().unwrap().text,
-        String::from("NEW #holochain mew")
-    );
+    assert_eq!(recommended_feed[0].feed_mew.mew.content.as_ref().unwrap().text, String::from("NEW #holochain mew"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -210,12 +197,7 @@ async fn trusted_feed_is_ordered_by_topic_weights() {
     })
     .await;
 
-    consistency_10s([
-        &(ann.cell.clone()),
-        &(bob.cell.clone()),
-        &(cat.cell.clone()),
-    ])
-    .await;
+    consistency_10s([&(ann.cell.clone()), &(bob.cell.clone()), &(cat.cell.clone())]).await;
 
     let recommended_feed = ann
         .recommended(RecommendedInput {
@@ -225,22 +207,10 @@ async fn trusted_feed_is_ordered_by_topic_weights() {
         .await;
 
     assert_eq!(recommended_feed.len(), 4);
-    // assert_eq!(
-    //     recommended_feed[0].mew.content.as_ref().unwrap().text,
-    //     String::from("#holochain from bob, weight 1.0")
-    // );
-    // assert_eq!(
-    //     recommended_feed[1].mew.content.as_ref().unwrap().text,
-    //     String::from("#holochain from cat, weight 0.5")
-    // );
-    // assert_eq!(
-    //     recommended_feed[2].mew.content.as_ref().unwrap().text,
-    //     String::from("#blockchain from bob, weight 0.25")
-    // );
-    // assert_eq!(
-    //     recommended_feed[3].mew.content.as_ref().unwrap().text,
-    //     String::from("#blockchain from cat, weight 0.0")
-    // );
+    assert_eq!(recommended_feed[0].feed_mew.mew.content.as_ref().unwrap().text, String::from("#holochain from bob, weight 1.0"));
+    assert_eq!(recommended_feed[1].feed_mew.mew.content.as_ref().unwrap().text, String::from("#holochain from cat, weight 0.5"));
+    assert_eq!(recommended_feed[2].feed_mew.mew.content.as_ref().unwrap().text, String::from("#blockchain from bob, weight 0.25"));
+    assert_eq!(recommended_feed[3].feed_mew.mew.content.as_ref().unwrap().text, String::from("#blockchain from cat, weight 0.0"));
 }
 
 //
@@ -265,7 +235,7 @@ impl Agent<'_> {
         self.conductor.call(&self.zome, "create_mew", input).await
     }
 
-    pub async fn recommended(&self, input: RecommendedInput) -> Vec<FeedMew> {
+    pub async fn recommended(&self, input: RecommendedInput) -> Vec<TrustFeedMew> {
         self.conductor.call(&self.zome, "recommended", input).await
     }
 }
