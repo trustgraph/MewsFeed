@@ -12,7 +12,7 @@
         v-for="(atom, i) in atoms"
         :key="i"
         :value="atom"
-        @input="(val) => atoms.splice(i, 1, val)"
+        @input="(val) => handleInput(val, i)"
       />
     </q-list>
     <button @click="addAtom">Add</button>
@@ -36,4 +36,11 @@ const allTopics = ref(true);
 const addAtom = async () => {
   atoms.value.push({ topic: "", weight: 0 });
 };
+
+function handleInput(val, i) {
+  const atom = atoms.value[i];
+  const key = Object.keys(val)[0];
+  atom[key] = val[key];
+  atoms.value[i] = atom;
+}
 </script>

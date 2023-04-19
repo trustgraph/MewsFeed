@@ -8,6 +8,7 @@
         dense
         borderless
         name="temp-topic"
+        @change="onChange"
       />
     </q-item-section>
     <q-item-section>
@@ -20,6 +21,7 @@
         label
         :marker-labels="fnMarkerLabel"
         name="temp-weight"
+        @change="onChange"
       />
     </q-item-section>
   </q-item>
@@ -33,6 +35,15 @@ import { TrustGraphAtomData } from "../types/types";
 const $q = useQuasar();
 
 const emit = defineEmits(["input"]);
+
+function onChange(target: number | string) {
+  // TODO split out into two handlers:
+  if (typeof target === "string") {
+    emit("input", { topic: target });
+  } else {
+    emit("input", { weight: target });
+  }
+}
 
 defineProps<{
   value: TrustGraphAtomData;
