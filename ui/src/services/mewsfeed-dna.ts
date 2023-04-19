@@ -7,7 +7,14 @@ import {
   CallZomeRequest,
   decodeHashFromBase64,
 } from "@holochain/client";
-import { CreateMewInput, FeedMew, FeedOptions, Mew } from "../types/types";
+import {
+  CreateMewInput,
+  FeedMew,
+  FeedOptions,
+  Mew,
+  RecommendedInput,
+  TrustFeedMew,
+} from "../types/types";
 
 export enum MewsFn {
   CreateMew = "create_mew",

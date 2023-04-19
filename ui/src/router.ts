@@ -50,7 +50,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: "/basket",
-    name: ROUTES.feed,
+    name: ROUTES.basket,
     component: BasketFeed,
   },
   {

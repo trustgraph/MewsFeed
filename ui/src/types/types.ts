@@ -104,8 +104,8 @@ export interface FeedMew {
 }
 
 export interface RecommendedInput {
-  now: string; // timestamp
-  oldest_mew_seconds: number | null;
+  now: number; // microseconds since epoch
+  oldestMewSeconds: number | null;
 }
 
 export interface TrustFeedMew {

@@ -38,8 +38,9 @@ export const makeUseMewsfeedStore = () => {
           this.isLoadingBasketFeed = true;
           this.basketFeed = await basketFeed({
             now: new Date().getTime() * 1000, // microseconds since epoch
-            oldest_mew_seconds: null,
+            oldestMewSeconds: null,
           });
+          console.log({ basketFeed: this.basketFeed });
         } catch (error) {
           showError(error);
         } finally {
