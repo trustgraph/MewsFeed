@@ -13,6 +13,7 @@ export enum MewsFn {
   CreateMew = "create_mew",
   GetMew = "get_mew",
   MewsFeed = "mews_feed",
+  BasketFeed = "recommended",
   MewsBy = "mews_by",
   Follow = "follow",
   Followers = "followers",
@@ -52,6 +53,10 @@ export const getMew = async (mew: ActionHash): Promise<Mew> =>
 
 export const mewsFeed = async (options: FeedOptions): Promise<Array<FeedMew>> =>
   callZome(MewsFn.MewsFeed, options);
+
+export const basketFeed = async (
+  input: RecommendedInput
+): Promise<Array<TrustFeedMew>> => callZome(MewsFn.BasketFeed, input);
 
 export const mewsBy = async (
   agent: AgentPubKey | AgentPubKeyB64

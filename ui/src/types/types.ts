@@ -103,6 +103,17 @@ export interface FeedMew {
   mewmews: HoloHash[];
 }
 
+export interface RecommendedInput {
+  now: string; // timestamp
+  oldest_mew_seconds: number | null;
+}
+
+export interface TrustFeedMew {
+  feedMew: FeedMew;
+  weight: number;
+  topic: string | null;
+}
+
 export interface FeedOptions {
   option: string;
 }

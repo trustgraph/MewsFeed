@@ -100,6 +100,12 @@
             label="Mews Feed"
           />
 
+          <q-route-tab
+            :to="{ name: ROUTES.basket }"
+            icon="basket"
+            label="Your Basket"
+          />
+
           <q-route-tab v-if="myProfile" :to="{ name: ROUTES.myProfile }">
             <agent-avatar
               :agentPubKey="myAgentPubKey"
