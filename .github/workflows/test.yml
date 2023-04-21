@@ -30,6 +30,7 @@ jobs:
           extra_nix_config: |
             substituters = https://cache.nixos.org https://holochain.cachix.org https://holochain-ci.cachix.org
             trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= holochain.cachix.org-1:fWOoSTrRQ8XipZim7a8LDqFAE8aqcGnG4E7G8NAJlgY= holochain-ci.cachix.org-1:5IUSkZc0aoRS53rfkvH9Kid40NpyjwCMCzwRTXy+QN8=
+            nix.settings.auto-optimise-store = true;
 
       - name: Inspect nix.conf
         run: cat ~/.config/nix/nix.conf || true
@@ -53,6 +54,9 @@ jobs:
 
       - name: Install nix packages
         run: nix develop -c $SHELL -c "echo Nix packages installed"
+
+      - run: nix develop -c $SHELL -c "nix-store --optimise"
+      - run: nix develop -c $SHELL -c "nix-store --gc"
 
       - name: Install JS packages
         run: nix develop -c $SHELL -c "npm ci"
