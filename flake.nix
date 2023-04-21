@@ -18,7 +18,8 @@
             packages = with pkgs; [
               # add further packages from nixpkgs
               cargo-watch
-              nodejs
+              nodejs-18_x
+              sqlite # temporary workaround, should be fixed in holochain-0.1.5
             ];
           };
         };

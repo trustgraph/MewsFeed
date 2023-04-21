@@ -9,7 +9,7 @@ use holochain::test_utils::consistency_10s;
 
 use mews_integrity::*; // for the types
 
-const DNA_FILEPATH: &str = "../../workdir/clutter.dna";
+const DNA_FILEPATH: &str = "../../workdir/mewsfeed.dna";
 const ZOME_NAME: &str = "mews";
 
 #[tokio::test(flavor = "multi_thread")]

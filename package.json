@@ -30,7 +30,8 @@
     "cargo:clippy": "cargo clippy --all-targets --all-features -- -D warnings",
     "cargo:clippy:watch": "cargo watch --clear -- npm run cargo:clippy",
     "cargo:fmt": "cargo fmt",
-    "cargo:fmt:check": "cargo fmt --check"
+    "cargo:fmt:check": "cargo fmt --check",
+    "checks": "npm run cargo:fmt && npm run cargo:clippy && npm run lint"
   },
   "devDependencies": {
     "@holochain-playground/cli": "^0.1.0",
