@@ -11,6 +11,6 @@ name = "trust_atom_zome"
 trust_atom = {git = "https://github.com/trustgraph/trustgraph-holochain.git", package = "trust_atom"}
 # trust_atom = { path= "/Users/knight/code/trustgraph/trustgraph-holochain/zomes/trust_atom"}
 
-hdk = "=0.1.1"
+hdk = "=0.1.2"
 rust_decimal = "1"
 serde = "1"
