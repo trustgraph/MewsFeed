@@ -4,7 +4,7 @@
       <q-input
         :model-value="value.topic"
         type="text"
-        placeholder="your topic"
+        placeholder="add tag"
         dense
         borderless
         name="temp-topic"

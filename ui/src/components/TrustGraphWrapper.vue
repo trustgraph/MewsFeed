@@ -1,6 +1,30 @@
 <template>
   <q-card square class="q-mb-md text-body1">
-    <q-checkbox v-model="allTopics" label="Follow All Topics" />
+    Adjust Trust in this Agent
+    ( this goes below the agent avatar and name)
+    <!--
+    Indicator of how much trust you have in this agent - thermometer
+    click to edit
+    Becomes range selector
+    -->
+
+
+      <TrustGraphAtom
+        v-for="(atom, i) in atoms"
+        :key="i"
+        :value="atom"
+        @input="(val) => handleInput(val, i)"
+      />
+
+    </q-card>
+
+  <q-card square class="q-mb-md text-body1">
+    <q-checkbox v-model="allTopics" label="Add Trust Tags" />
+<!--
+    Add Trust Ratings
+    Add Trust Tags
+
+-->
 
     <!-- <div class="flex items-center justify-between" v-if="!allTopics">
       <div class="flex" style="font-weight: bold">topic</div>
