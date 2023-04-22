@@ -55,8 +55,15 @@ jobs:
       - name: Install nix packages
         run: nix develop -c $SHELL -c "echo Nix packages installed"
 
-      - run: nix develop -c $SHELL -c "nix-store --optimise"
+      - run: df -h
+
       - run: nix develop -c $SHELL -c "nix-store --gc"
+
+      - run: df -h
+
+      - run: nix develop -c $SHELL -c "nix-store --optimise"
+
+      - run: df -h
 
       - name: Install JS packages
         run: nix develop -c $SHELL -c "npm ci"
