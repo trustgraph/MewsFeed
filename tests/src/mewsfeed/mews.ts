@@ -399,7 +399,7 @@ test("Hashtag, cashtag and mention", async (t) => {
         "#hashtag",
         60000
       );
-      t.ok(hashtaggedMews.length === 1, "one mew with hashtag");
+      t.equal(hashtaggedMews.length, 1, "one mew with hashtag");
       t.equal(
         hashtaggedMews[0].mew.content?.text,
         mewContent,
